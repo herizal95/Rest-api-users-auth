@@ -1,13 +1,12 @@
 package controllers
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"golang-api/models"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // get all
@@ -23,6 +22,11 @@ func GetUsers(c *gin.Context) {
 	})
 }
 
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+
 // Create new
 func CreateUsers(c *gin.Context) {
 	var input models.Users
@@ -31,16 +35,13 @@ func CreateUsers(c *gin.Context) {
 		return
 	}
 
-	b := make([]byte, 8)
-	_, err := rand.Read(b)
-	if err != nil {
-		c.AbortWithError(500, err)
-		return
+	// generate password
+	hash, _ := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+
+	task := models.Users{
+		Username: input.Username,
+		Password: string(hash),
 	}
-
-	passwordEncrypted := hex.EncodeToString(b)
-
-	task := models.Users{Username: input.Username, Password: passwordEncrypted}
 
 	db := c.MustGet("db").(*gorm.DB)
 	db.Create(&task)
